@@ -39,8 +39,15 @@ def process_blip(image):
     
     inputs_blip = blip_processor(image, return_tensors="pt")
     
-    with torch.no_grad():
-        out_blip = blip_model.generate(**inputs_blip)
+    # Ajuste os parâmetros de geração aqui
+    out_blip = blip_model.generate(
+        **inputs_blip,
+        max_length=100,  # Ajuste o comprimento máximo conforme necessário
+        min_length=15,   # Ajuste o comprimento mínimo conforme necessário
+        num_beams=5,    # Use beam search para melhorar a qualidade
+        length_penalty=1 # Penalize comprimentos mais curtos para gerar textos mais longos
+    )
+    
     description_en = blip_processor.decode(out_blip[0], skip_special_tokens=True)
     return description_en
 
@@ -64,7 +71,7 @@ def main():
     if not login_hugging_face(token):
         return
     
-    url = "https://farm6.staticflickr.com/5519/9382494910_b34268b6e4_z.jpg"
+    url = "https://cdn.pixabay.com/photo/2017/08/06/18/52/pony-2595144_1280.jpg"
     
     image = load_image(url)
     if image is None:
