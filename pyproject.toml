@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "image-to-text-to-speech"
+version = "0.1.0"
+description = ""
+authors = ["alvarorenan <alvaroca1544@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+huggingface-hub = "^0.24.6"
+transformers = "^4.44.1"
+pillow = "^10.4.0"
+translate = "^3.6.1"
+torch = "^2.4.0"
+gtts = "^2.5.3"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
