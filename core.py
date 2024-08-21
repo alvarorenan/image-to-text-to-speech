@@ -1,47 +1,83 @@
-from huggingface_hub import login
-from transformers import BlipProcessor, BlipForConditionalGeneration
-from PIL import Image
-import requests
-from io import BytesIO
-from translate import Translator
-import torch
-from gtts import gTTS
 import os
+import requests
+from PIL import Image
+from transformers import BlipProcessor, BlipForConditionalGeneration
+from deep_translator import GoogleTranslator
+from gtts import gTTS
+import torch
+from io import BytesIO
+from huggingface_hub import login
 from dotenv import load_dotenv
 
 load_dotenv()
 
-
 # Token do Hugging Face
 token = os.getenv("HUGGING_FACE_TOKEN")
-login(token=token)
 
-# URL da imagem
-url = "https://cdn.pixabay.com/photo/2023/08/05/08/15/ship-8170663_1280.jpg"
+def login_hugging_face(token):
+    try:
+        login(token=token)
+        print("Login realizado com sucesso no Hugging Face!")
+    except Exception as e:
+        print(f"Erro ao realizar login no Hugging Face: {e}")
+        return False
+    return True
 
-# Carrega a imagem da URL
-response = requests.get(url)
-image = Image.open(BytesIO(response.content))
+def load_image(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        image = Image.open(BytesIO(response.content))
+        return image
+    except requests.RequestException as e:
+        print(f"Erro ao carregar a imagem: {e}")
+        return None
 
-# Carrega o processador e o modelo BLIP
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
+def process_blip(image):
+    blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
+    blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
+    
+    inputs_blip = blip_processor(image, return_tensors="pt")
+    
+    with torch.no_grad():
+        out_blip = blip_model.generate(**inputs_blip)
+    description_en = blip_processor.decode(out_blip[0], skip_special_tokens=True)
+    return description_en
 
-# Preprocessa a imagem
-inputs = processor(image, return_tensors="pt")
+def translate_text(text):
+    try:
+        translator = GoogleTranslator(source='en', target='pt')
+        translated_text = translator.translate(text)
+        return translated_text
+    except Exception as e:
+        print(f"Erro ao traduzir o texto: {e}")
+        return None
 
-# Gera a descrição em inglês
-with torch.no_grad():
-    out = model.generate(**inputs)
+def convert_to_audio(text, filename):
+    try:
+        tts = gTTS(text=text, lang='pt')
+        tts.save(filename)
+    except Exception as e:
+        print(f"Erro ao salvar o áudio: {e}")
 
-description_en = processor.decode(out[0], skip_special_tokens=True)
+def main():
+    if not login_hugging_face(token):
+        return
+    
+    url = "https://farm6.staticflickr.com/5519/9382494910_b34268b6e4_z.jpg"
+    
+    image = load_image(url)
+    if image is None:
+        return
+    
+    description_en = process_blip(image)
+    description_pt = translate_text(description_en)
+    if description_pt is None:
+        return
+    print("Descrição em Português:", description_pt)
+    
+    audio_file = "description_pt.mp3"
+    convert_to_audio(description_pt, audio_file)
 
-# Traduzindo para o português
-translator = Translator(to_lang="pt")
-description_pt = translator.translate(description_en)
-print("Descrição em Português:", description_pt)
-
-# Converte a descrição para áudio
-tts = gTTS(text=description_pt, lang='pt')
-tts.save("description_pt.mp3")
-
+if __name__ == "__main__":
+    main()
